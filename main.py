@@ -25,14 +25,9 @@ DATA_URL = "https://raw.githubusercontent.com/greatsong/modudata/main/data/kobis
 @st.cache_data
 def load_data(url: str) -> pd.DataFrame:
     df = pd.read_csv(url)
-
-    # 장르: 세로막대(|)로 여러 개 적힌 경우 첫 번째만 사용
     df["genre"] = df["genre"].astype(str).str.split("|").str[0].str.strip()
-
-    # 개봉일을 문자열로 유지(8자리 숫자) → 연도 파생 열 추가
     df["openDt"] = df["openDt"].astype(str).str.zfill(8)
     df["open_year"] = df["openDt"].str[:4]
-
     return df
 
 df = load_data(DATA_URL)
@@ -54,7 +49,6 @@ genre_counts = (
     .rename(columns={"index": "genre", "count": "편수", "genre": "장르"})
 )
 
-# value_counts() 결과 열 이름이 pandas 버전에 따라 다를 수 있어 안전하게 처리
 if "장르" not in genre_counts.columns:
     genre_counts.columns = ["장르", "편수"]
 
@@ -62,7 +56,7 @@ fig1 = px.pie(
     genre_counts,
     names="장르",
     values="편수",
-    hole=0.45,                          # 도넛 모양
+    hole=0.45,
     title="장르별 영화 편수 (도넛 차트)",
     color_discrete_sequence=px.colors.qualitative.Pastel,
 )
@@ -81,7 +75,6 @@ fig1.update_layout(
 
 st.plotly_chart(fig1, use_container_width=True)
 
-# 인사이트 박스
 st.info(
     "💡 **이 그래프로 알 수 있는 것** : "
     "박스오피스 상위권에 오른 영화들은 특정 장르에 편중되어 있으며, "
@@ -91,48 +84,50 @@ st.info(
 st.divider()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 그래프 2 : 제작 국가별 영화 편수 - 도넛 그래프
+# 그래프 2 : 장르 안에 영화가 들어 있는 트리맵 (크기 = 총 관객)
 # ══════════════════════════════════════════════════════════════════════════════
-st.header("🌏 그래프 2 : 제작 국가별 영화 편수")
+st.header("🗺️ 그래프 2 : 장르별 영화 트리맵 (크기 = 총 관객 수)")
 
-nation_counts = (
-    df["nation"]
-    .value_counts()
-    .reset_index()
-    .rename(columns={"index": "nation"})
-)
-if "nation" not in nation_counts.columns or nation_counts.shape[1] == 2:
-    nation_counts.columns = ["국가", "편수"]
-else:
-    nation_counts = nation_counts.rename(columns={"nation": "국가", "count": "편수"})
-
-fig2 = px.pie(
-    nation_counts,
-    names="국가",
-    values="편수",
-    hole=0.45,
-    title="제작 국가별 영화 편수 (도넛 차트)",
-    color_discrete_sequence=px.colors.qualitative.Set2,
+fig2 = px.treemap(
+    df,
+    path=["genre", "movieNm"],
+    values="total_audi",
+    title="장르별 영화 트리맵 (칸 크기 = 총 관객 수)",
+    color="total_audi",
+    color_continuous_scale="Blues",
+    labels={
+        "genre"      : "장르",
+        "movieNm"    : "영화명",
+        "total_audi" : "총 관객 수",
+    },
 )
 
 fig2.update_traces(
-    textposition="inside",
-    textinfo="percent+label",
-    hovertemplate="<b>%{label}</b><br>편수: %{value}편<br>비율: %{percent}<extra></extra>",
+    hovertemplate=(
+        "<b>%{label}</b><br>"
+        "총 관객: %{value:,}명<br>"
+        "상위 항목: %{parent}<extra></extra>"
+    ),
+    texttemplate="%{label}<br>%{value:,}명",
+    textfont_size=12,
 )
 
 fig2.update_layout(
     title_font_size=18,
-    legend_title_text="국가",
-    height=520,
+    height=600,
+    coloraxis_colorbar=dict(
+        title="총 관객 수",
+        tickformat=",",
+    ),
+    margin=dict(t=60, l=10, r=10, b=10),
 )
 
 st.plotly_chart(fig2, use_container_width=True)
 
 st.info(
     "💡 **이 그래프로 알 수 있는 것** : "
-    "박스오피스 상위권에는 한국 영화와 특정 해외 국가 영화가 큰 비율을 차지하며, "
-    "국산 영화의 경쟁력과 수입 영화의 시장 점유율을 한눈에 비교할 수 있습니다."
+    "장르별로 묶인 칸의 크기를 통해 어떤 장르가 전체 관객을 많이 동원했는지, "
+    "그 안에서 어떤 영화가 흥행을 주도했는지 한눈에 파악할 수 있습니다."
 )
 
 st.divider()
@@ -186,13 +181,12 @@ fig4 = px.scatter(
     hover_name="movieNm",
     title="개봉일 스크린 수와 총 관객 수의 관계",
     labels={
-        "first_scrn": "개봉일 스크린 수",
-        "total_audi": "총 관객 수 (명)",
-        "genre": "장르",
+        "first_scrn" : "개봉일 스크린 수",
+        "total_audi" : "총 관객 수 (명)",
+        "genre"      : "장르",
     },
     color_discrete_sequence=px.colors.qualitative.Bold,
     opacity=0.75,
-    size_max=12,
 )
 
 fig4.update_traces(
@@ -225,7 +219,6 @@ st.divider()
 # ══════════════════════════════════════════════════════════════════════════════
 st.header("📦 그래프 5 : 장르별 10위권 머문 날수 분포 (박스플롯)")
 
-# 편수가 2편 이상인 장르만 표시
 genre_filter = genre_counts[genre_counts["편수"] >= 2]["장르"].tolist()
 df_filtered = df[df["genre"].isin(genre_filter)]
 
@@ -236,11 +229,11 @@ fig5 = px.box(
     color="genre",
     title="장르별 10위권 머문 날수 분포",
     labels={
-        "genre": "장르",
-        "days_in_top10": "10위권 머문 날수",
+        "genre"         : "장르",
+        "days_in_top10" : "10위권 머문 날수",
     },
     color_discrete_sequence=px.colors.qualitative.Pastel,
-    points="all",           # 모든 데이터 포인트 표시
+    points="all",
 )
 
 fig5.update_traces(
@@ -279,9 +272,9 @@ fig6 = px.scatter(
     hover_name="movieNm",
     title="개봉 첫 주 관객과 총 관객 수의 관계",
     labels={
-        "first_week_audi": "개봉 첫 주 관객 수 (명)",
-        "total_audi": "총 관객 수 (명)",
-        "nation": "제작 국가",
+        "first_week_audi" : "개봉 첫 주 관객 수 (명)",
+        "total_audi"      : "총 관객 수 (명)",
+        "nation"          : "제작 국가",
     },
     color_discrete_sequence=px.colors.qualitative.Safe,
     opacity=0.8,
