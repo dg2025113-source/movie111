@@ -160,10 +160,25 @@ fig3.update_layout(
 
 st.plotly_chart(fig3, use_container_width=True)
 
+# ── 자동 계산 문구 ────────────────────────────────────────────────────────────
+# 가장 관객이 많은 영화
+top_movie     = df.loc[df["total_audi"].idxmax(), "movieNm"]
+top_audi      = df["total_audi"].max()
+
+# 총 관객 수 구간별 편수 계산 (100만 단위)
+bin_size      = 1_000_000
+df["audi_bin"] = (df["total_audi"] // bin_size) * bin_size
+most_bin      = df["audi_bin"].value_counts().idxmax()
+most_bin_cnt  = df["audi_bin"].value_counts().max()
+bin_label_low = int(most_bin // 10_000)        # 만 단위로 표시
+bin_label_hi  = int((most_bin + bin_size) // 10_000)
+
 st.info(
-    "💡 **이 그래프로 알 수 있는 것** : "
-    "총 관객 수는 오른쪽으로 긴 꼬리를 가진 분포를 보이며, "
-    "소수의 영화가 압도적으로 많은 관객을 모으는 '흥행 쏠림 현상'이 존재함을 알 수 있습니다."
+    f"💡 **이 그래프로 알 수 있는 것** : "
+    f"216편 중 가장 많은 영화({most_bin_cnt}편)가 "
+    f"**{bin_label_low}만 ~ {bin_label_hi}만 명** 구간에 몰려 있으며, "
+    f"총 관객이 가장 많은 영화는 **「{top_movie}」** "
+    f"({int(top_audi):,}명)입니다."
 )
 
 st.divider()
