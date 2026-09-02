@@ -161,16 +161,14 @@ fig3.update_layout(
 st.plotly_chart(fig3, use_container_width=True)
 
 # ── 자동 계산 문구 ────────────────────────────────────────────────────────────
-# 가장 관객이 많은 영화
-top_movie     = df.loc[df["total_audi"].idxmax(), "movieNm"]
-top_audi      = df["total_audi"].max()
+top_movie    = df.loc[df["total_audi"].idxmax(), "movieNm"]
+top_audi     = df["total_audi"].max()
 
-# 총 관객 수 구간별 편수 계산 (100만 단위)
-bin_size      = 1_000_000
+bin_size     = 1_000_000
 df["audi_bin"] = (df["total_audi"] // bin_size) * bin_size
-most_bin      = df["audi_bin"].value_counts().idxmax()
-most_bin_cnt  = df["audi_bin"].value_counts().max()
-bin_label_low = int(most_bin // 10_000)        # 만 단위로 표시
+most_bin     = df["audi_bin"].value_counts().idxmax()
+most_bin_cnt = df["audi_bin"].value_counts().max()
+bin_label_low = int(most_bin // 10_000)
 bin_label_hi  = int((most_bin + bin_size) // 10_000)
 
 st.info(
@@ -184,7 +182,7 @@ st.info(
 st.divider()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 그래프 4 : 개봉일 스크린 수 vs 총 관객 수 - 산점도
+# 그래프 4 : 개봉일 스크린 수 vs 총 관객 수 - 산점도 (장르별 색상)
 # ══════════════════════════════════════════════════════════════════════════════
 st.header("🎯 그래프 4 : 개봉일 스크린 수 vs 총 관객 수 (산점도)")
 
@@ -194,14 +192,14 @@ fig4 = px.scatter(
     y="total_audi",
     color="genre",
     hover_name="movieNm",
-    title="개봉일 스크린 수와 총 관객 수의 관계",
+    title="개봉일 스크린 수와 총 관객 수의 관계 (장르별 색상)",
     labels={
-        "first_scrn" : "개봉일 스크린 수",
+        "first_scrn" : "개봉일 스크린 수 (개)",
         "total_audi" : "총 관객 수 (명)",
         "genre"      : "장르",
     },
     color_discrete_sequence=px.colors.qualitative.Bold,
-    opacity=0.75,
+    opacity=0.8,
 )
 
 fig4.update_traces(
@@ -217,6 +215,8 @@ fig4.update_layout(
     title_font_size=18,
     height=520,
     legend_title_text="장르",
+    xaxis_tickformat=",",
+    yaxis_tickformat=",",
 )
 
 st.plotly_chart(fig4, use_container_width=True)
@@ -230,92 +230,154 @@ st.info(
 st.divider()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 그래프 5 : 10위권 머문 날수 분포 - 박스플롯 (장르별)
+# 그래프 5 : 장르별 총 관객 수 박스플롯 (10편 이상 장르만)
 # ══════════════════════════════════════════════════════════════════════════════
-st.header("📦 그래프 5 : 장르별 10위권 머문 날수 분포 (박스플롯)")
+st.header("📦 그래프 5 : 장르별 총 관객 수 분포 (박스플롯, 10편 이상 장르)")
 
-genre_filter = genre_counts[genre_counts["편수"] >= 2]["장르"].tolist()
-df_filtered = df[df["genre"].isin(genre_filter)]
+# 10편 이상인 장르만 추출
+genre_10 = (
+    df["genre"]
+    .value_counts()
+    .loc[lambda x: x >= 10]
+    .index.tolist()
+)
+df_box = df[df["genre"].isin(genre_10)].copy()
 
 fig5 = px.box(
-    df_filtered,
+    df_box,
     x="genre",
-    y="days_in_top10",
+    y="total_audi",
     color="genre",
-    title="장르별 10위권 머문 날수 분포",
+    hover_name="movieNm",          # 마우스를 올리면 영화명 표시
+    title="장르별 총 관객 수 분포 (10편 이상 장르)",
     labels={
-        "genre"         : "장르",
-        "days_in_top10" : "10위권 머문 날수",
+        "genre"      : "장르",
+        "total_audi" : "총 관객 수 (명)",
     },
     color_discrete_sequence=px.colors.qualitative.Pastel,
-    points="all",
+    points="outliers",             # 이상치 점만 표시
 )
 
 fig5.update_traces(
-    hovertemplate="장르: %{x}<br>날수: %{y}일<extra></extra>"
+    hovertemplate=(
+        "<b>%{hovertext}</b><br>"
+        "총 관객: %{y:,}명<extra></extra>"
+    ),
 )
 
 fig5.update_layout(
     title_font_size=18,
     xaxis_title="장르",
-    yaxis_title="10위권 머문 날수 (일)",
+    yaxis_title="총 관객 수 (명)",
+    yaxis_tickformat=",",
     showlegend=False,
     height=520,
-    xaxis_tickangle=-30,
+    xaxis_tickangle=-20,
 )
 
 st.plotly_chart(fig5, use_container_width=True)
 
 st.info(
     "💡 **이 그래프로 알 수 있는 것** : "
-    "장르에 따라 10위권 유지 기간의 중앙값과 분포 범위가 다르며, "
-    "특정 장르는 단기 흥행에 집중되고 다른 장르는 더 오래 관객의 선택을 받는 경향이 있음을 알 수 있습니다."
+    "장르마다 총 관객 수의 중앙값과 분포 범위가 크게 다르며, "
+    "상자 밖으로 튀어나온 점은 같은 장르 안에서도 유독 흥행한 예외적인 작품임을 알 수 있습니다."
 )
 
 st.divider()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 그래프 6 : 개봉 첫 주 관객 vs 총 관객 - 산점도 (국가별 색상)
+# 그래프 6 : 버블 그래프 (스크린 수 vs 총 관객, 버블 크기 = 첫 주 관객)
 # ══════════════════════════════════════════════════════════════════════════════
-st.header("🌟 그래프 6 : 개봉 첫 주 관객 vs 총 관객 (산점도)")
+st.header("🫧 그래프 6 : 개봉일 스크린 수 vs 총 관객 수 (버블 크기 = 첫 주 관객)")
 
 fig6 = px.scatter(
     df,
-    x="first_week_audi",
+    x="first_scrn",
     y="total_audi",
-    color="nation",
+    size="first_week_audi",        # 버블 크기 = 첫 주 관객
+    color="genre",
     hover_name="movieNm",
-    title="개봉 첫 주 관객과 총 관객 수의 관계",
+    title="개봉일 스크린 수 vs 총 관객 수 버블 그래프 (버블 크기 = 개봉 첫 주 관객)",
     labels={
-        "first_week_audi" : "개봉 첫 주 관객 수 (명)",
+        "first_scrn"      : "개봉일 스크린 수 (개)",
         "total_audi"      : "총 관객 수 (명)",
-        "nation"          : "제작 국가",
+        "first_week_audi" : "첫 주 관객 수",
+        "genre"           : "장르",
     },
-    color_discrete_sequence=px.colors.qualitative.Safe,
-    opacity=0.8,
+    color_discrete_sequence=px.colors.qualitative.Bold,
+    opacity=0.75,
+    size_max=55,
 )
 
 fig6.update_traces(
-    marker=dict(size=8, line=dict(width=0.5, color="white")),
     hovertemplate=(
         "<b>%{hovertext}</b><br>"
-        "첫 주 관객: %{x:,}명<br>"
-        "총 관객: %{y:,}명<extra></extra>"
+        "스크린 수: %{x:,}개<br>"
+        "총 관객: %{y:,}명<br>"
+        "첫 주 관객: %{marker.size:,}명<extra></extra>"
     ),
 )
 
 fig6.update_layout(
     title_font_size=18,
-    height=520,
-    legend_title_text="제작 국가",
+    height=560,
+    legend_title_text="장르",
+    xaxis_tickformat=",",
+    yaxis_tickformat=",",
 )
 
 st.plotly_chart(fig6, use_container_width=True)
 
 st.info(
     "💡 **이 그래프로 알 수 있는 것** : "
-    "개봉 첫 주 관객 수와 최종 총 관객 수 사이에 강한 양의 상관관계가 존재하며, "
-    "초반 흥행 성적이 영화의 전체 흥행을 예측하는 중요한 지표임을 알 수 있습니다."
+    "버블이 클수록 개봉 첫 주에 많은 관객을 모은 영화이며, "
+    "스크린을 많이 확보하고 첫 주 흥행까지 성공한 영화일수록 최종 관객도 많아지는 경향을 확인할 수 있습니다."
+)
+
+st.divider()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 그래프 7 : 국가 → 장르 선버스트 그래프 (크기 = 영화 편수)
+# ══════════════════════════════════════════════════════════════════════════════
+st.header("☀️ 그래프 7 : 제작 국가 → 장르 선버스트 (크기 = 영화 편수)")
+
+# 국가-장르 조합별 편수 집계
+sunburst_df = (
+    df.groupby(["nation", "genre"])
+    .size()
+    .reset_index(name="편수")
+)
+
+fig7 = px.sunburst(
+    sunburst_df,
+    path=["nation", "genre"],      # 국가 → 장르 2단계 계층
+    values="편수",
+    title="제작 국가 → 장르 선버스트 (칸 크기 = 영화 편수)",
+    color="nation",
+    color_discrete_sequence=px.colors.qualitative.Pastel,
+)
+
+fig7.update_traces(
+    hovertemplate=(
+        "<b>%{label}</b><br>"
+        "편수: %{value}편<br>"
+        "비율: %{percentRoot:.1%}<extra></extra>"
+    ),
+    textfont_size=13,
+)
+
+fig7.update_layout(
+    title_font_size=18,
+    height=600,
+    margin=dict(t=60, l=10, r=10, b=10),
+)
+
+st.plotly_chart(fig7, use_container_width=True)
+
+st.info(
+    "💡 **이 그래프로 알 수 있는 것** : "
+    "안쪽 원은 제작 국가, 바깥 원은 장르를 나타내며, "
+    "국가마다 주력 장르가 다르고 한국 영화와 해외 영화가 서로 다른 장르 분포를 보임을 알 수 있습니다."
 )
 
 st.divider()
